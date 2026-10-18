@@ -4,33 +4,40 @@ Sincronizador de horário para Windows utilizando o protocolo SNTP (Simple Netwo
 
 ## Visão geral
 
-O SyncNTP consulta um servidor NTP por UDP na porta 123, valida a resposta recebida e ajusta o relógio do Windows utilizando a API `SetSystemTime` do Win32.
+O SyncNTP consulta servidores NTP por UDP na porta 123, valida a resposta recebida e ajusta o relógio do Windows utilizando a API `SetSystemTime` do Win32.
 
-O projeto foi desenvolvido para execução automatizada, principalmente por meio do Agendador de Tarefas do Windows, sem necessidade de manter uma janela de console aberta.
+O projeto foi desenvolvido para execução automatizada por meio do Agendador de Tarefas do Windows. O executável disponibilizado no Release 1.4 foi compilado sem janela de console, permitindo a execução em segundo plano.
 
-### Principais recursos
+## Principais recursos
 
 - Consulta de servidores NTP por IPv4.
 - Configuração de servidor principal e servidor de fallback.
-- Tentativa automática com o servidor secundário caso o principal falhe.
+- Tentativa automática com o servidor secundário quando o principal falha.
 - Validação da versão, do modo, do estado de sincronização e do estrato da resposta NTP.
 - Ajuste do relógio do Windows por meio da API Win32.
 - Registro de sucessos e falhas no Visualizador de Eventos.
 - Notificação por MessageBox em caso de erro, quando executado em uma sessão interativa.
-- Compilação para executável `.exe` sem janela de console.
-- Compatibilidade com execução automatizada pelo Agendador de Tarefas.
+- Executável sem janela de console.
+- Execução automatizada pelo Agendador de Tarefas do Windows.
+
+## Download
+
+O executável pré-compilado está disponível no **Release 1.4**, na seção *Releases* deste repositório.
+
+Baixe o arquivo `syncntp.exe` diretamente do Release 1.4. O código-fonte `syncntp.ps1` e o modelo de tarefa `SyncNTP.xml` estão disponíveis no repositório.
+
+Para utilizar a configuração de tarefa fornecida, siga as instruções da seção [Importar tarefa do Agendador de Tarefas](#importar-tarefa-do-agendador-de-tarefas).
 
 ## Requisitos
 
 - Windows com suporte à API Win32 utilizada pelo projeto.
-- Windows PowerShell compatível com o script.
 - Conexão de rede capaz de alcançar um servidor NTP via UDP na porta 123.
-- Permissões administrativas ou privilégios suficientes para ajustar o relógio do sistema e registrar a fonte de eventos.
-- PS2EXE para gerar o executável.
+- Permissões suficientes para ajustar o relógio do sistema e registrar eventos no log Aplicativo do Windows.
+- Para compilar o executável a partir do código-fonte, Windows PowerShell e o módulo PS2EXE.
 
 ## Configuração dos servidores
 
-Por padrão, o script utiliza:
+Por padrão, o projeto utiliza os seguintes servidores:
 
 | Função | Servidor |
 |---|---|
@@ -39,45 +46,45 @@ Por padrão, o script utiliza:
 
 Os servidores podem ser substituídos pelos argumentos fornecidos na execução.
 
-O servidor de fallback só é consultado quando a tentativa com o servidor principal falha. Se os dois servidores falharem, o programa registra o erro e, quando possível, notifica o usuário.
+O servidor de fallback só é consultado quando a tentativa com o servidor principal falha. Se ambos falharem, o programa registra o erro e, quando existe uma sessão interativa disponível, exibe uma notificação ao usuário.
 
-## Compilação para EXE
+## Instalação
 
-Instale o módulo PS2EXE no PowerShell:
+### 1. Baixar o executável
 
-```powershell
-Install-Module -Name ps2exe -Scope CurrentUser
+Acesse a seção *Releases* deste repositório e baixe o arquivo `syncntp.exe` disponível no Release 1.4.
+
+### 2. Definir o local de instalação
+
+O arquivo `SyncNTP.xml` fornecido no repositório utiliza o seguinte caminho para o executável:
+
+```text
+C:\Program Files\SyncNTP\syncntp.exe
 ```
 
-Se a política de execução impedir o carregamento do módulo, você pode liberar temporariamente a execução na sessão atual:
+Crie a pasta `C:\Program Files\SyncNTP` e coloque o executável nela. A criação da pasta e a gravação de arquivos nesse local podem exigir privilégios administrativos.
 
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-```
+Caso escolha outro diretório, altere os campos `Command` e `WorkingDirectory` da tarefa para corresponder ao local escolhido.
 
-Carregue o módulo:
+### 3. Importar a tarefa
 
-```powershell
-Import-Module ps2exe
-```
+Siga as instruções da seção [Importar tarefa do Agendador de Tarefas](#importar-tarefa-do-agendador-de-tarefas).
 
-Gere o executável sem console:
+### 4. Testar a execução
 
-```powershell
-Invoke-PS2EXE -InputFile ".\syncntp.ps1" -OutputFile ".\syncntp.exe" -NoConsole -STA -NoOutput -NoError -Title "Sincronizador NTP" -Description "Sincronizacao do relogio do Windows" -Version "1.0.0.0"
-```
-
-O arquivo `syncntp.exe` será criado no caminho especificado em `-OutputFile`.
-
-> **Observação:** o PS2EXE empacota o script PowerShell em um executável que depende do ambiente PowerShell do Windows. Isso não equivale à compilação para código nativo nem garante a ocultação do código-fonte.
+Após importar a tarefa, selecione-a no Agendador de Tarefas e clique em **Executar**. Em seguida, consulte o Visualizador de Eventos para verificar se a sincronização foi concluída.
 
 ## Utilização
 
 ### Executar com os servidores padrão
 
-```cmd
-syncntp.exe
+Ao executar o script diretamente, os servidores definidos como padrão serão utilizados:
+
+```powershell
+.\syncntp.ps1
 ```
+
+O executável compilado também utiliza esses servidores quando não recebe argumentos.
 
 ### Informar servidor principal e fallback
 
@@ -97,20 +104,61 @@ Também é possível executar o script diretamente:
 
 ## Agendador de Tarefas do Windows
 
-Para executar o sincronizador automaticamente:
+O projeto inclui o arquivo `SyncNTP.xml`, que contém uma configuração predefinida para executar o sincronizador automaticamente.
 
-1. Abra o Agendador de Tarefas.
-2. Crie uma tarefa, em vez de uma tarefa básica, para ter acesso às opções avançadas.
-3. Configure o gatilho desejado, como na inicialização do sistema ou em um horário recorrente.
-4. Na guia **Geral**, habilite **Executar com privilégios mais altos** e selecione a conta apropriada.
-5. Na guia **Ações**, configure o executável e os argumentos.
+A tarefa está configurada para iniciar:
 
-Exemplo:
+- Um minuto após a inicialização do Windows.
+- Um minuto após o logon do usuário.
+- Um minuto após o desbloqueio da sessão.
+- Diariamente, por volta das 12h, com atraso aleatório de até um minuto.
+
+A tarefa também permite execução sob demanda, aceita execução na bateria e está configurada para ignorar novas instâncias quando já existe uma execução em andamento.
+
+### Importar tarefa do Agendador de Tarefas
+
+Antes de importar, coloque `syncntp.exe` no caminho especificado no XML ou prepare-se para alterar o caminho da ação após a importação.
+
+**1. Preparar o SID da conta**
+
+O arquivo `SyncNTP.xml` utiliza um marcador de exemplo no campo `UserId`:
+
+```xml
+<UserId>REPLACE_WITH_YOUR_USER_SID</UserId>
+```
+
+Esse marcador deve ser substituído pelo SID da conta do Windows que executará a tarefa.
+
+Para consultar o SID da conta atual, abra o CMD e execute:
+
+```cmd
+whoami /user
+```
+
+Copie o SID exibido e substitua o marcador no XML por esse valor. Salve o arquivo antes de continuar.
+
+**2. Importar o arquivo XML**
+
+1. Pressione `Win + R`.
+2. Digite `taskschd.msc` e pressione Enter.
+3. No painel **Ações**, clique em **Importar Tarefa...**.
+4. Selecione o arquivo `SyncNTP.xml` disponível no repositório.
+5. Confirme a importação e, se solicitado, ajuste a conta utilizada pela tarefa.
+
+**3. Conferir as configurações**
+
+Após a importação, abra as propriedades da tarefa e verifique:
+
+- **Geral:** confira a conta de execução e a opção **Executar com privilégios mais altos**.
+- **Disparadores:** confira os gatilhos de inicialização, logon, desbloqueio e execução diária.
+- **Ações:** confirme o caminho do executável e os argumentos.
+
+A ação fornecida utiliza:
 
 **Programa/script**
 
 ```text
-C:\SyncNTP\syncntp.exe
+C:\Program Files\SyncNTP\syncntp.exe
 ```
 
 **Adicionar argumentos**
@@ -119,26 +167,43 @@ C:\SyncNTP\syncntp.exe
 -end "200.160.7.197" "a.st1.ntp.br"
 ```
 
-Uma tarefa executada sem uma sessão interativa não consegue exibir normalmente uma MessageBox na área de trabalho do usuário. Nessa situação, os eventos do Windows são o principal meio de consultar o resultado da execução.
+**4. Salvar e testar**
 
-### Importar tarefa do Agendador de Tarefas
+Clique em **OK** para salvar a tarefa. Caso solicitado, forneça as credenciais necessárias.
 
-O projeto disponibiliza o arquivo `SyncNTP.xml` com uma configuração predefinida para o Agendador de Tarefas do Windows.
+Selecione a tarefa e clique em **Executar** para testar a configuração.
 
-Para importar a tarefa:
+**Importante:** a tarefa utiliza `InteractiveToken`, portanto depende de uma sessão interativa do usuário configurado. A MessageBox de erro não será exibida normalmente quando a tarefa executar em uma sessão não interativa, como quando o usuário estiver desconectado. Nessa situação, consulte o Visualizador de Eventos.
 
-1. Baixe o arquivo `SyncNTP.xml` do repositório.
-2. Confirme que o executável `syncntp.exe` está no caminho definido no XML. Caso necessário, ajuste o caminho e os argumentos da ação.
-3. Pressione `Win + R`, digite `taskschd.msc` e pressione Enter.
-4. No painel **Ações**, clique em **Importar Tarefa...**.
-5. Selecione o arquivo `SyncNTP.xml` e confirme a importação.
-6. Na guia **Geral**, confira a conta utilizada e habilite **Executar com privilégios mais altos**, caso necessário.
-7. Na guia **Disparadores**, confira quando a tarefa será executada.
-8. Na guia **Ações**, confirme o caminho do executável e os argumentos.
-9. Clique em **OK** para salvar a tarefa. Caso solicitado, forneça as credenciais necessárias.
-10. Selecione a tarefa importada e clique em **Executar** para testar a configuração.
+## Compilação a partir do código-fonte
 
-**Importante:** revise as configurações da tarefa antes de executá-la. O caminho do executável, os argumentos, a conta de execução e os privilégios podem precisar ser adaptados ao computador. Uma tarefa importada não é necessariamente executada imediatamente.
+Se preferir gerar o executável a partir do script PowerShell, instale o módulo PS2EXE:
+
+```powershell
+Install-Module -Name ps2exe -Scope CurrentUser
+```
+
+Caso a política de execução impeça temporariamente o carregamento do módulo, libere a execução na sessão atual:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+```
+
+Carregue o módulo:
+
+```powershell
+Import-Module ps2exe
+```
+
+Gere o executável sem janela de console:
+
+```powershell
+Invoke-PS2EXE -InputFile ".\syncntp.ps1" -OutputFile ".\syncntp.exe" -NoConsole -STA -NoOutput -NoError -Title "Sincronizador NTP" -Description "Sincronizacao do relogio do Windows" -Version "1.4.0.0"
+```
+
+O arquivo `syncntp.exe` será criado no caminho definido em `-OutputFile`.
+
+> **Observação:** o PS2EXE empacota o script PowerShell em um executável que depende do ambiente PowerShell do Windows. Isso não equivale à compilação para código nativo nem garante a ocultação do código-fonte.
 
 ## Visualizador de Eventos
 
@@ -148,7 +213,7 @@ Para consultar os registros:
 
 1. Execute `eventvwr.msc`.
 2. Abra **Logs do Windows → Aplicativo**.
-3. Localize eventos cuja fonte seja `SyncNTP`.
+3. Localize os eventos cuja fonte seja `SyncNTP`.
 
 ### Identificadores de evento
 
@@ -158,7 +223,7 @@ Para consultar os registros:
 | `2000` | Erro | Falha na sincronização. |
 | `2001` | Erro | O relógio foi ajustado, mas não foi possível registrar o evento de sucesso. |
 
-A criação inicial da fonte de eventos exige permissões adequadas. Recomenda-se executar a configuração inicial e a tarefa com os privilégios necessários.
+A criação inicial da fonte de eventos exige permissões adequadas. Caso os eventos não apareçam, verifique as permissões da conta utilizada e se a fonte `SyncNTP` foi criada corretamente.
 
 ## Como funciona
 
@@ -166,7 +231,7 @@ O processo de sincronização segue estas etapas:
 
 1. Resolve o endereço IPv4 do servidor selecionado.
 2. Envia uma solicitação SNTP de 48 bytes por UDP.
-3. Aguarda a resposta do servidor, com tempo limite de recebimento.
+3. Aguarda uma resposta do servidor, com tempo limite de recebimento.
 4. Valida campos importantes da resposta NTP.
 5. Extrai o timestamp de transmissão do servidor e converte-o para UTC.
 6. Ajusta o relógio do Windows com `SetSystemTime`.
@@ -197,6 +262,10 @@ Verifique se a fonte `SyncNTP` foi criada e se a conta utilizada tem permissões
 ### A MessageBox não aparece
 
 A notificação visual só pode ser exibida em uma sessão interativa. Para tarefas executadas sem o usuário conectado, consulte o Visualizador de Eventos.
+
+### A tarefa não é importada
+
+Confirme se substituiu `REPLACE_WITH_YOUR_USER_SID` pelo SID válido da conta escolhida. Verifique também se o XML está salvo em uma codificação compatível com a declaração do arquivo.
 
 ## Segurança e limitações
 
